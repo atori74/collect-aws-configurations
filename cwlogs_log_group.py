@@ -11,10 +11,9 @@ logs = boto3.client('logs')
 def collect_configurations_of_log_group(log_group_name: str) -> Dict[str, Any]:
     res = logs.describe_log_groups(logGroupNamePrefix=log_group_name)
     if len(res['logGroups']) != 1:
+        print(f'Cannot find the unique log group: {log_group_name}')
         return
-
     info = res['logGroups'][0]
-    info['kmsKeyId'] = info.get('kmsKeyId', '')
 
     log_stream_names = [
         s['logStreamName']
@@ -22,15 +21,17 @@ def collect_configurations_of_log_group(log_group_name: str) -> Dict[str, Any]:
             logGroupName=info['logGroupName']
         )['logStreams']
     ]
-    info['logStreams'] = '\n'.join(log_stream_names)
-
     subscription_filter_names = [
         s['filterName']
         for s in logs.describe_subscription_filters(
-            logGroupName=info['logGroupName'])['subscriptionFilters']]
-    info['subscriptionFilters'] = '\n'.join(subscription_filter_names)
-
+            logGroupName=info['logGroupName']
+        )['subscriptionFilters']
+    ]
     tags = logs.list_tags_log_group(logGroupName=info['logGroupName'])['tags']
+
+    info['subscriptionFilters'] = '\n'.join(subscription_filter_names)
+    info['logStreams'] = '\n'.join(log_stream_names)
+    info['kmsKeyId'] = info.get('kmsKeyId', '')
     info['tags'] = str(tags)
     info['tagName'] = tags.get('Name', '')
     info['tagEnv'] = tags.get('Env', '')
